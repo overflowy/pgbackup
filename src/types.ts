@@ -20,7 +20,6 @@ export type BackupMetadata = {
   name: string;
   size: number;
   checksum: string;
-  isValid: boolean;
 };
 
 export type RestoreOptions = {
@@ -28,15 +27,5 @@ export type RestoreOptions = {
   force: boolean;
   drop: boolean;
 };
-
-export enum ExitCode {
-  Success = 0,
-  ConfigError = 1,
-  DatabaseError = 2,
-  S3Error = 3,
-  OperationError = 4,
-  UserInterrupt = 5,
-  SystemError = 6,
-}
 
 export type OutputFormat = "human" | "json";
