@@ -1,4 +1,5 @@
 import { config } from "@/config";
+import { uploadToS3 } from "@/s3";
 import {
   calculateChecksum,
   checkBinaryExists,
@@ -57,7 +58,6 @@ export const backup = async (): Promise<BackupResult> => {
     if (!psqlExists) {
       spinner.warn("psql not found. Original database size calculation will be skipped.");
     }
-    spinner.succeed("Dependency checks completed");
 
     const timestamp = format(new Date(), "yyyy-MM-dd-HH:mm");
     const backupName = `dump_${config.dbName}.${timestamp}.zstd`;
@@ -100,11 +100,26 @@ export const backup = async (): Promise<BackupResult> => {
     const checksum = await calculateChecksum(backupPath);
     spinner.succeed("Backup processed");
 
+    spinner.start("Uploading to S3");
+    try {
+      await uploadToS3(backupPath, backupName, {
+        checksum,
+        timestamp,
+        ...(dbSize && { originalSize: String(dbSize) }),
+        compressedSize: String(backupStats.size),
+      });
+    } catch (error) {
+      spinner.fail("Upload failed");
+      console.error("S3 upload error:", error);
+      throw new Error("S3 upload failed");
+    }
+    spinner.succeed("Upload completed");
+
     const endTime = Date.now();
     const duration = endTime - startTime;
 
     console.log("\nBackup Summary:");
-    console.log("==============");
+    console.log("===============");
     if (dbSize !== undefined) {
       console.log(`DB Size: ${formatBytes(dbSize)}`);
       console.log(`Compression Ratio: ${(dbSize / backupStats.size).toFixed(2)}x`);
@@ -112,7 +127,6 @@ export const backup = async (): Promise<BackupResult> => {
     console.log(`Backup Size: ${formatBytes(backupStats.size)}`);
     console.log(`Duration: ${formatDuration(duration)}`);
     console.log(`Checksum: ${checksum}`);
-    console.log(`Location: s3://${config.s3Bucket}/${backupName}`);
 
     return {
       success: true,
