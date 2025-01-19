@@ -10,6 +10,7 @@ const s3Client = new S3Client({
     secretAccessKey: config.s3SecretKey,
   },
   forcePathStyle: true,
+  region: "us-east-1",
 });
 
 export const uploadToS3 = async (
