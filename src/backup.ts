@@ -7,38 +7,61 @@ import {
   formatDuration,
 } from "@/utils";
 import { format } from "date-fns";
-import { existsSync } from "node:fs";
-import { mkdir, stat, unlink } from "node:fs/promises";
+import { access, mkdir, stat, unlink } from "node:fs/promises";
+import { join } from "node:path";
 import ora from "ora";
 
 type BackupResult = {
   success: boolean;
   duration: number;
-  size: number;
-  compressedSize: number;
+  size?: number;
+  compressedSize?: number;
   checksum: string;
   backupName: string;
+};
+
+const ensureTempDir = async (path: string): Promise<void> => {
+  try {
+    await access(path);
+  } catch {
+    await mkdir(path, { recursive: true });
+  }
+};
+
+const cleanupFile = async (filePath: string): Promise<void> => {
+  try {
+    await access(filePath);
+    await unlink(filePath);
+  } catch {
+    // File doesn't exist or can't be accessed, ignore
+  }
 };
 
 export const backup = async (): Promise<BackupResult> => {
   const spinner = ora();
   const startTime = Date.now();
+  let backupPath: string | undefined;
 
   try {
+    await ensureTempDir(config.tempDir);
     spinner.start("Checking for pg_dump");
     const pgDumpExists = await checkBinaryExists("pg_dump");
     if (!pgDumpExists) {
       spinner.fail("pg_dump not found. Please install PostgreSQL client tools.");
-      process.exit(1);
+      process.exit(0);
     }
     spinner.succeed("pg_dump found");
 
+    spinner.start("Checking for psql");
+    const psqlExists = await checkBinaryExists("psql");
+    if (!psqlExists) {
+      spinner.warn("psql not found. Original database size calculation will be skipped.");
+    }
+    spinner.succeed("Dependency checks completed");
+
     const timestamp = format(new Date(), "yyyy-MM-dd-HH:mm");
     const backupName = `dump_${config.dbName}.${timestamp}.zstd`;
-    if (!existsSync(config.tempDir)) {
-      await mkdir(config.tempDir, { recursive: true });
-    }
-    const backupPath = `${config.tempDir}/${backupName}`;
+    backupPath = join(config.tempDir, backupName);
 
     process.env.PGPASSWORD = config.dbPassword;
 
@@ -52,22 +75,24 @@ export const backup = async (): Promise<BackupResult> => {
     } catch (error) {
       spinner.fail("Database backup failed");
       console.error("pg_dump error:", error);
-      process.exit(1);
+      throw new Error("Database backup failed");
     }
     spinner.succeed("Database backup created");
 
-    spinner.start("Calculating database size");
-    let dbSize: number;
-    try {
-      const { stdout } = await execAsync(
-        `psql -h ${config.dbHost} -p ${config.dbPort} ` +
-          `-U ${config.dbUser} -d ${config.dbName} -t -c ` +
-          `"SELECT pg_database_size('${config.dbName}')"`
-      );
-      dbSize = Number.parseInt(stdout.trim(), 10);
-    } catch (error) {
-      spinner.warn("Could not determine database size");
-      dbSize = 0;
+    let dbSize: number | undefined;
+    if (psqlExists) {
+      spinner.start("Calculating database size");
+      try {
+        const { stdout } = await execAsync(
+          `psql -h ${config.dbHost} -p ${config.dbPort} ` +
+            `-U ${config.dbUser} -d ${config.dbName} -t -c ` +
+            `"SELECT pg_database_size('${config.dbName}')"`
+        );
+        dbSize = Number.parseInt(stdout.trim(), 10);
+        spinner.succeed("Database size calculated");
+      } catch (error) {
+        spinner.info("Could not determine database size");
+      }
     }
 
     spinner.start("Processing backup");
@@ -75,32 +100,53 @@ export const backup = async (): Promise<BackupResult> => {
     const checksum = await calculateChecksum(backupPath);
     spinner.succeed("Backup processed");
 
-    spinner.start("Cleaning up temporary files");
-    await unlink(backupPath);
-    spinner.succeed("Cleanup completed");
-
     const endTime = Date.now();
     const duration = endTime - startTime;
 
     console.log("\nBackup Summary:");
     console.log("==============");
-    console.log(`Original DB Size: ${formatBytes(dbSize)}`);
+    if (dbSize !== undefined) {
+      console.log(`DB Size: ${formatBytes(dbSize)}`);
+      console.log(`Compression Ratio: ${(dbSize / backupStats.size).toFixed(2)}x`);
+    }
     console.log(`Backup Size: ${formatBytes(backupStats.size)}`);
-    console.log(`Compression Ratio: ${(dbSize / backupStats.size || 0).toFixed(2)}x`);
     console.log(`Duration: ${formatDuration(duration)}`);
     console.log(`Checksum: ${checksum}`);
+    console.log(`Location: s3://${config.s3Bucket}/${backupName}`);
 
     return {
       success: true,
       duration,
-      size: dbSize,
       compressedSize: backupStats.size,
       checksum,
       backupName,
+      ...(dbSize !== undefined && { size: dbSize }),
     };
   } catch (error) {
     spinner.fail("Backup process failed");
     console.error("Unexpected error:", error);
+    throw error;
+  } finally {
+    if (backupPath) {
+      spinner.start("Cleaning up temporary files");
+      await cleanupFile(backupPath);
+      spinner.succeed("Cleanup completed");
+    }
+  }
+};
+
+export const handleBackup = async (): Promise<void> => {
+  try {
+    await backup();
+    process.exit(0);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes("Database backup failed")) {
+        process.exit(1);
+      } else if (error.message.includes("S3 upload failed")) {
+        process.exit(1);
+      }
+    }
     process.exit(1);
   }
 };
