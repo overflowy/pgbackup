@@ -5,7 +5,7 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "compile": "bun build ./src/index.ts --compile --outfile ./dist/pgbackup",
-    "pull": "git reset --hard HEAD && git pull --rebase"
+    "pull": "git reset --hard HEAD && git pull --rebase && bun install"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.731.1",
+    "@aws-sdk/lib-storage": "^3.731.1",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
     "ora": "^8.1.1"

@@ -1,6 +1,6 @@
 import { config } from "@/config";
-import { retry } from "@/utils";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream } from "node:fs";
 
 const s3Client = new S3Client({
@@ -17,13 +17,18 @@ export const uploadToS3 = async (
   filePath: string,
   key: string,
   metadata: Record<string, string>
-) => {
-  const command = new PutObjectCommand({
-    Bucket: config.s3Bucket,
-    Key: key,
-    Body: createReadStream(filePath),
-    Metadata: metadata,
+): Promise<void> => {
+  const fileStream = createReadStream(filePath);
+
+  const upload = new Upload({
+    client: s3Client,
+    params: {
+      Bucket: config.s3Bucket,
+      Key: key,
+      Body: fileStream,
+      Metadata: metadata,
+    },
   });
 
-  return retry(() => s3Client.send(command));
+  await upload.done();
 };
