@@ -7,6 +7,7 @@ import {
   formatDuration,
 } from "@/utils";
 import { format } from "date-fns";
+import { existsSync } from "node:fs";
 import { mkdir, stat, unlink } from "node:fs/promises";
 import ora from "ora";
 
@@ -34,7 +35,9 @@ export const backup = async (): Promise<BackupResult> => {
 
     const timestamp = format(new Date(), "yyyy-MM-dd-HH:mm");
     const backupName = `dump_${config.dbName}.${timestamp}.zstd`;
-    await mkdir(config.tempDir, { recursive: true });
+    if (!existsSync(config.tempDir)) {
+      await mkdir(config.tempDir, { recursive: true });
+    }
     const backupPath = `${config.tempDir}/${backupName}`;
 
     process.env.PGPASSWORD = config.dbPassword;
