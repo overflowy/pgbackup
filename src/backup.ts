@@ -3,12 +3,14 @@ import { uploadToS3 } from "@/s3";
 import {
   calculateChecksum,
   checkBinaryExists,
+  cleanupFile,
+  ensureTempDir,
   execAsync,
   formatBytes,
   formatDuration,
 } from "@/utils";
 import { format } from "date-fns";
-import { access, mkdir, stat, unlink } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import ora from "ora";
 
@@ -19,23 +21,6 @@ type BackupResult = {
   compressedSize?: number;
   checksum: string;
   backupName: string;
-};
-
-const ensureTempDir = async (path: string): Promise<void> => {
-  try {
-    await access(path);
-  } catch {
-    await mkdir(path, { recursive: true });
-  }
-};
-
-const cleanupFile = async (filePath: string): Promise<void> => {
-  try {
-    await access(filePath);
-    await unlink(filePath);
-  } catch {
-    // File doesn't exist or can't be accessed, ignore
-  }
 };
 
 export const backup = async (): Promise<BackupResult> => {

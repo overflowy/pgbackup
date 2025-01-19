@@ -1,6 +1,8 @@
 import { exec } from "node:child_process";
 import { createHash, type BinaryLike } from "node:crypto";
 import { createReadStream } from "node:fs";
+import { access, mkdir, unlink } from "node:fs/promises";
+import { createInterface } from "node:readline";
 import { promisify } from "node:util";
 
 export const execAsync = promisify(exec);
@@ -64,4 +66,48 @@ export const formatDuration = (ms: number): string => {
     return `${minutes}m ${seconds % 60}s`;
   }
   return `${seconds}s`;
+};
+
+export const formatDate = (date: Date): string => {
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+};
+
+export const ensureTempDir = async (path: string): Promise<void> => {
+  try {
+    await access(path);
+  } catch {
+    await mkdir(path, { recursive: true });
+  }
+};
+
+export const cleanupFile = async (filePath: string): Promise<void> => {
+  try {
+    await access(filePath);
+    await unlink(filePath);
+  } catch {
+    // File doesn't exist or can't be accessed, ignore
+  }
+};
+
+export const confirm = async (message: string): Promise<boolean> => {
+  const readline = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    const answer = await new Promise<string>((resolve) => {
+      readline.question(`${message} (y/n) `, resolve);
+    });
+    return answer.toLowerCase() === "y";
+  } finally {
+    readline.close();
+  }
 };
