@@ -20,6 +20,8 @@ type BackupResult = {
 };
 
 export const backup = async (): Promise<BackupResult> => {
+  process.env.PGPASSWORD = config.dbPassword;
+
   const spinner = ora();
   const startTime = Date.now();
   const timestamp = format(new Date(), "yyyy-MM-dd-HH:mm");
@@ -31,7 +33,6 @@ export const backup = async (): Promise<BackupResult> => {
     await tryRemoveFile(backupPath);
     process.exit(1);
   };
-
   process.on("SIGINT", handleInterrupt);
   process.on("SIGTERM", handleInterrupt);
 
@@ -58,12 +59,23 @@ export const backup = async (): Promise<BackupResult> => {
   }
 
   spinner.start("Creating database backup");
-  process.env.PGPASSWORD = config.dbPassword;
   const pgDumpResult = await safe(
     execAsync(
-      `pg_dump -h ${config.dbHost} -p ${config.dbPort} ` +
-        `-U ${config.dbUser} -d ${config.dbName} ` +
-        `-Fc --compress=zstd:3 -f ${backupPath}`
+      [
+        "pg_dump",
+        "-h",
+        config.dbHost,
+        "-p",
+        config.dbPort,
+        "-U",
+        config.dbUser,
+        "-d",
+        config.dbName,
+        "-Fc",
+        "--compress=zstd:3",
+        "-f",
+        backupPath,
+      ].join(" ")
     )
   );
 
@@ -79,9 +91,20 @@ export const backup = async (): Promise<BackupResult> => {
   if (psqlExists.ok) {
     const psqlCmd = await safe(
       execAsync(
-        `psql -h ${config.dbHost} -p ${config.dbPort} ` +
-          `-U ${config.dbUser} -d ${config.dbName} -t -c ` +
-          `"SELECT pg_database_size('${config.dbName}')"`
+        [
+          "psql",
+          "-h",
+          config.dbHost,
+          "-p",
+          config.dbPort,
+          "-U",
+          config.dbUser,
+          "-d",
+          config.dbName,
+          "-t",
+          "-c",
+          `SELECT pg_database_size('${config.dbName}')`,
+        ].join(" ")
       )
     );
 
@@ -125,6 +148,8 @@ export const backup = async (): Promise<BackupResult> => {
     process.exit(1);
   }
   spinner.succeed("Backup rotation completed");
+
+  await tryRemoveFile(backupPath);
 
   const endTime = Date.now();
   const duration = endTime - startTime;
