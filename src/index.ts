@@ -29,17 +29,16 @@ const main = async () => {
     });
 
   program
-    .command("remove")
+    .command("remove <id>")
     .alias("rm")
-    .description("Remove a backup")
+    .description("Remove a backup by ID")
     .action(async (id) => {
       await remove(id);
     });
 
   program
-    .command("restore")
+    .command("restore <id>")
     .alias("r")
-    .argument("<id>", "Backup ID to restore")
     .description("Restore a backup")
     .option("--force", "Skip user confirmation")
     .option("--drop", "Drop existing objects before restore")

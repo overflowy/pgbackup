@@ -15,6 +15,7 @@ export const restore = async (id: string, options: RestoreOptions): Promise<void
   let tempFile: string | undefined;
 
   const handleInterrupt = async () => {
+    spinner.stop();
     console.warn("\nReceived interrupt signal. Cleaning up...");
     if (tempFile) {
       await tryRemoveFile(tempFile);
@@ -42,10 +43,10 @@ export const restore = async (id: string, options: RestoreOptions): Promise<void
 
   const backup = backups.data.find((b) => b.id === id);
   if (!backup) {
-    spinner.fail(`Backup with id ${id} not found`);
+    spinner.fail(`Backup with ID ${id} not found`);
     process.exit(1);
   }
-  spinner.succeed(`Backup with id ${id} found`);
+  spinner.succeed(`Backup with ID ${id} found`);
 
   spinner.start("Checking database connection");
   const connectionCheck = await safe(
@@ -58,18 +59,15 @@ export const restore = async (id: string, options: RestoreOptions): Promise<void
         config.dbPort,
         "-U",
         config.dbUser,
-        "-d",
-        config.dbName,
-        "-c",
-        "SELECT 1",
+        "-l", // Lists all databases
       ].join(" ")
     )
   );
   if (!connectionCheck.ok) {
-    spinner.fail("Failed to connect to database");
+    spinner.fail("Failed to connect to Postgres");
     process.exit(1);
   }
-  spinner.succeed("Database connection successful");
+  spinner.succeed("Connection to Postgres successful");
 
   spinner.start("Downloading backup");
   tempFile = join(config.tempDir, backup.name);

@@ -29,6 +29,7 @@ export const backup = async (): Promise<BackupResult> => {
   const backupPath = join(config.tempDir, backupName);
 
   const handleInterrupt = async () => {
+    spinner.stop();
     console.warn("\nReceived interrupt signal. Cleaning up...");
     await tryRemoveFile(backupPath);
     process.exit(1);
@@ -103,7 +104,7 @@ export const backup = async (): Promise<BackupResult> => {
           config.dbName,
           "-t",
           "-c",
-          `SELECT pg_database_size('${config.dbName}')`,
+          `"SELECT pg_database_size('${config.dbName}')"`,
         ].join(" ")
       )
     );

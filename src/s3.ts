@@ -70,7 +70,7 @@ export const getBackupMetadataFromS3 = async (key: string): Promise<BackupMetada
   });
 
   const response = await s3Client.send(command);
-  return response as unknown as BackupMetadata;
+  return response.Metadata as unknown as BackupMetadata;
 };
 
 export const downloadFromS3 = async (key: string, destinationPath: string): Promise<void> => {
