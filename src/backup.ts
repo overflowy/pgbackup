@@ -34,10 +34,10 @@ export const backup = async (): Promise<BackupResult> => {
     process.exit(1);
   }
 
-  spinner.start("Checking for pgsql");
-  const pgSqlExists = await safe(checkBinaryExists("pgsql"));
-  if (!pgSqlExists.ok) {
-    spinner.warn("pgsql not found, database size will not be calculated");
+  spinner.start("Checking for psql");
+  const psqlExists = await safe(checkBinaryExists("psql"));
+  if (!psqlExists.ok) {
+    spinner.warn("psql not found, database size will not be calculated");
   }
 
   spinner.start("Checking for pg_dump");
@@ -66,8 +66,8 @@ export const backup = async (): Promise<BackupResult> => {
 
   spinner.start("Calculating database size");
   let dbSize: number | undefined;
-  if (pgSqlExists.ok) {
-    const pgSqlCmd = await safe(
+  if (psqlExists.ok) {
+    const psqlCmd = await safe(
       execAsync(
         `psql -h ${config.dbHost} -p ${config.dbPort} ` +
           `-U ${config.dbUser} -d ${config.dbName} -t -c ` +
@@ -75,8 +75,8 @@ export const backup = async (): Promise<BackupResult> => {
       )
     );
 
-    if (pgSqlCmd.ok) {
-      const { stdout } = pgSqlCmd.data;
+    if (psqlCmd.ok) {
+      const { stdout } = psqlCmd.data;
       dbSize = Number.parseInt(stdout.trim(), 10);
       spinner.succeed("Database size calculated");
     } else {

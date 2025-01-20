@@ -6,6 +6,7 @@ import { access, mkdir, unlink } from "node:fs/promises";
 export const ensureDir = async (path: string): Promise<void> => {
   try {
     await access(path);
+    return;
   } catch (e) {
     // Do nothing
   }
