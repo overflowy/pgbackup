@@ -26,6 +26,15 @@ export const backup = async (): Promise<BackupResult> => {
   const backupName = `dump_${config.dbName}.${timestamp}.zstd`;
   const backupPath = join(config.tempDir, backupName);
 
+  const handleInterrupt = async () => {
+    console.warn("\nReceived interrupt signal. Cleaning up...");
+    await tryRemoveFile(backupPath);
+    process.exit(1);
+  };
+
+  process.on("SIGINT", handleInterrupt);
+  process.on("SIGTERM", handleInterrupt);
+
   const tempDirReady = await safe(
     ensureDir(config.tempDir),
     "Failed to access or create temp directory"
@@ -108,7 +117,7 @@ export const backup = async (): Promise<BackupResult> => {
   }
   spinner.succeed("Upload completed");
 
-  spinner.start(`Rotating backups (max: ${config.maxBackups})`);
+  spinner.start(`Rotating backups (MAX_BACKUPS=${config.maxBackups})`);
   const rotateResult = await safe(rotateBackups());
   if (!rotateResult.ok) {
     spinner.fail(`Failed to rotate backups:\n${rotateResult.error}`);
