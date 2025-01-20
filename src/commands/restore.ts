@@ -33,6 +33,14 @@ export const restore = async (id: string, options: RestoreOptions): Promise<void
   }
   spinner.succeed("pg_restore found");
 
+  spinner.start("Checking for createdb");
+  const createdbExists = await safe(checkBinaryExists("createdb"));
+  if (!createdbExists.ok) {
+    spinner.fail("createdb not found");
+    process.exit(1);
+  }
+  spinner.succeed("createdb found");
+
   spinner.start("Fetching backup list");
   const backups = await safe(listBackups());
   if (!backups.ok) {
@@ -48,26 +56,47 @@ export const restore = async (id: string, options: RestoreOptions): Promise<void
   }
   spinner.succeed(`Backup with ID ${id} found`);
 
-  spinner.start("Checking database connection");
-  const connectionCheck = await safe(
+  spinner.start("Checking if database exists");
+  const dbListResult = await safe(
     execAsync(
-      [
-        "psql",
-        "-h",
-        config.dbHost,
-        "-p",
-        config.dbPort,
-        "-U",
-        config.dbUser,
-        "-l", // Lists all databases
-      ].join(" ")
+      ["psql", "-h", config.dbHost, "-p", config.dbPort, "-U", config.dbUser, "-lqt"].join(" ")
     )
   );
-  if (!connectionCheck.ok) {
-    spinner.fail("Failed to connect to Postgres");
+  if (!dbListResult.ok) {
+    spinner.fail("Failed to list databases");
+    console.error("\n", dbListResult.error);
     process.exit(1);
   }
-  spinner.succeed("Connection to Postgres successful");
+  const dbExists = dbListResult.data.stdout.split("\n").some((line) => {
+    const [dbName] = line.split("|").map((s) => s.trim());
+    return dbName === config.dbName;
+  });
+
+  if (!dbExists) {
+    spinner.start("Database does not exist, creating it");
+    const createDbResult = await safe(
+      execAsync(
+        [
+          "createdb",
+          "-h",
+          config.dbHost,
+          "-p",
+          config.dbPort,
+          "-U",
+          config.dbUser,
+          config.dbName,
+        ].join(" ")
+      )
+    );
+    if (!createDbResult.ok) {
+      console.error("\n", createDbResult.error);
+      spinner.fail("Failed to create database");
+      process.exit(1);
+    }
+    spinner.succeed("Database created");
+  } else {
+    spinner.succeed("Database already exists");
+  }
 
   spinner.start("Downloading backup");
   tempFile = join(config.tempDir, backup.name);
