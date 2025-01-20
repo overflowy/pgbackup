@@ -34,7 +34,6 @@ export type S3Object = {
 export type OutputFormat = "human" | "json";
 
 export type RestoreOptions = {
-  dryRun: boolean;
   force: boolean;
   drop: boolean;
 };
