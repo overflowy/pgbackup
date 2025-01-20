@@ -107,13 +107,14 @@ export const backup = async (): Promise<BackupResult> => {
   }
   spinner.succeed("Upload completed");
 
-  spinner.start("Rotating backups");
+  spinner.start(`Rotating backups (max: ${config.maxBackups})`);
   const rotateResult = await safe(rotateBackups());
   if (!rotateResult.ok) {
     spinner.fail(`Failed to rotate backups:\n${rotateResult.error}`);
     await tryRemoveFile(backupPath);
     process.exit(1);
   }
+  spinner.succeed("Backup rotation completed");
 
   const endTime = Date.now();
   const duration = endTime - startTime;

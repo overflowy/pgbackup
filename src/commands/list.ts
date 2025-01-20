@@ -6,28 +6,28 @@ import Table from "cli-table3";
 export const list = async (outputFormat: OutputFormat = "human") => {
   const backups = await listFromS3();
 
-  if (outputFormat === "json") {
-    if (!backups.length) {
-      console.log("[]");
-      return;
-    }
-    console.log(JSON.stringify(backups, null, 2));
-    return;
-  }
-
-  if (!backups.length) {
-    console.log("No backups found");
-    return;
-  }
-
   const sortedBackups = backups
+    .sort((a, b) => new Date(b.LastModified).getTime() - new Date(a.LastModified).getTime())
     .map((obj, index) => ({
       id: String(index + 1),
       date: obj.LastModified?.toISOString() || "",
       name: obj.Key || "",
       size: obj.Size || 0,
-    }))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }));
+
+  if (outputFormat === "json") {
+    if (!sortedBackups.length) {
+      console.log("[]");
+      return;
+    }
+    console.log(JSON.stringify(sortedBackups, null, 2));
+    return;
+  }
+
+  if (!sortedBackups.length) {
+    console.log("No backups found");
+    return;
+  }
 
   const table = new Table({
     head: ["ID", "Last Modified", "Name", "Size"],
