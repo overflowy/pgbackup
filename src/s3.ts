@@ -54,3 +54,15 @@ export const listFromS3 = async () => {
 
   return response.Contents as S3Object[];
 };
+
+export const rotateBackups = async (): Promise<void> => {
+  const backups = await listFromS3();
+
+  if (backups.length >= config.maxBackups) {
+    const backupsToDelete = backups.slice(config.maxBackups - 1);
+
+    for (const backup of backupsToDelete) {
+      await deleteFromS3(backup.Key);
+    }
+  }
+};

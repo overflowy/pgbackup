@@ -1,5 +1,5 @@
 import { config } from "@/config";
-import { uploadToS3 } from "@/s3";
+import { rotateBackups, uploadToS3 } from "@/s3";
 import { execAsync, retry } from "@/utils/async";
 import { formatBytes, formatDuration } from "@/utils/format";
 import { calcSha256, checkBinaryExists, ensureDir, tryRemoveFile } from "@/utils/os";
@@ -106,6 +106,14 @@ export const backup = async (): Promise<BackupResult> => {
     process.exit(1);
   }
   spinner.succeed("Upload completed");
+
+  spinner.start("Rotating backups");
+  const rotateResult = await safe(rotateBackups());
+  if (!rotateResult.ok) {
+    spinner.fail(`Failed to rotate backups:\n${rotateResult.error}`);
+    await tryRemoveFile(backupPath);
+    process.exit(1);
+  }
 
   const endTime = Date.now();
   const duration = endTime - startTime;
