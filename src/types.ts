@@ -8,6 +8,7 @@ export type Config = {
   s3AccessKey: string;
   s3SecretKey: string;
   s3Bucket: string;
+  s3Region: string;
   maxBackups: number;
   tempDir: string;
   operationTimeout: number;

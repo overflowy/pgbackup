@@ -1,9 +1,7 @@
 import { config } from "@/config";
 import type { BackupMetadata, OutputFormat } from "@/types";
-import { formatBytes, formatDate } from "@/utils";
-import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import Table from "cli-table3";
 import { createReadStream } from "node:fs";
 
 const s3Client = new S3Client({
@@ -13,7 +11,7 @@ const s3Client = new S3Client({
     secretAccessKey: config.s3SecretKey,
   },
   forcePathStyle: true,
-  region: "us-east-1",
+  region: config.s3Region,
 });
 
 export const uploadToS3 = async (
@@ -36,53 +34,23 @@ export const uploadToS3 = async (
   await upload.done();
 };
 
-export const listBackups = async (format: OutputFormat = "human"): Promise<void> => {
-  try {
-    const command = new ListObjectsV2Command({
-      Bucket: config.s3Bucket,
-      Prefix: `dump_${config.dbName}`,
-    });
+export const deleteFromS3 = async (key: string): Promise<void> => {
+  const command = new DeleteObjectCommand({
+    Bucket: config.s3Bucket,
+    Key: key,
+  });
 
-    const response = await s3Client.send(command);
+  await s3Client.send(command);
+};
 
-    if (!response.Contents) {
-      if (format === "json") {
-        console.log(JSON.stringify([]));
-        return;
-      }
-      console.log("No backups found");
-      return;
-    }
+export const listFromS3 = async () => {
+  const command = new ListObjectsV2Command({
+    Bucket: config.s3Bucket,
+    Prefix: `dump_${config.dbName}`,
+  });
 
-    const backups = response.Contents.map((obj, index) => ({
-      id: String(index + 1),
-      date: obj.LastModified?.toISOString() || "",
-      name: obj.Key || "",
-      size: obj.Size || 0,
-    })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const response = await s3Client.send(command);
+  if (!response.Contents) return [];
 
-    if (format === "json") {
-      console.log(JSON.stringify(backups, null, 2));
-      return;
-    }
-
-    const table = new Table({
-      head: ["ID", "Date", "Name", "Size"],
-      style: { head: ["cyan"] },
-    });
-
-    for (const backup of backups) {
-      table.push([
-        backup.id,
-        formatDate(new Date(backup.date)),
-        backup.name,
-        formatBytes(backup.size),
-      ]);
-    }
-
-    console.log(table.toString());
-  } catch (error) {
-    console.error("Failed to list backups:", error);
-    process.exit(1);
-  }
+  return response.Contents;
 };

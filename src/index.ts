@@ -1,9 +1,7 @@
-import { handleBackup } from "@/backup";
-import { listBackups } from "@/s3";
+import { backup } from "@/backup";
 
 const main = async () => {
-  await listBackups();
-  //   await handleBackup();
+  await backup();
 };
 
 main();

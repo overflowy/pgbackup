@@ -31,6 +31,7 @@ const loadConfig = (): Config => {
     s3AccessKey: process.env.S3_ACCESS_KEY || "",
     s3SecretKey: process.env.S3_SECRET_KEY || "",
     s3Bucket: process.env.S3_BUCKET || "",
+    s3Region: process.env.S3_REGION || "us-east-1",
     maxBackups: Number.parseInt(process.env.MAX_BACKUPS || "5"),
     tempDir: process.env.TEMP_DIR || process.cwd(),
     operationTimeout: Number.parseInt(process.env.OPERATION_TIMEOUT || "3600"),
