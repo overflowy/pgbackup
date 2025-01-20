@@ -1,6 +1,11 @@
 import { config } from "@/config";
-import type { S3Object } from "@/types";
-import { DeleteObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import type { BackupMetadata, S3Object } from "@/types";
+import {
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream } from "node:fs";
 
@@ -50,7 +55,18 @@ export const listFromS3 = async () => {
   });
 
   const response = await s3Client.send(command);
+
   if (!response.Contents) return [] as S3Object[];
 
   return response.Contents as S3Object[];
+};
+
+export const getBackupMetadataFromS3 = async (key: string): Promise<BackupMetadata> => {
+  const command = new HeadObjectCommand({
+    Bucket: config.s3Bucket,
+    Key: key,
+  });
+
+  const response = await s3Client.send(command);
+  return response as unknown as BackupMetadata;
 };

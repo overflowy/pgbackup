@@ -1,5 +1,6 @@
+import { listBackups } from "@/commands/list";
 import { config } from "@/config";
-import { deleteFromS3, listFromS3, uploadToS3 } from "@/s3";
+import { deleteFromS3, uploadToS3 } from "@/s3";
 import { execAsync, retry } from "@/utils/async";
 import { formatBytes, formatDuration } from "@/utils/format";
 import { calcSha256, checkBinaryExists, ensureDir, tryRemoveFile } from "@/utils/os";
@@ -140,17 +141,13 @@ export const backup = async (): Promise<BackupResult> => {
 };
 
 export const rotateBackups = async (): Promise<void> => {
-  const backups = await listFromS3();
-
-  const sortedBackups = backups.sort(
-    (a, b) => new Date(b.LastModified).getTime() - new Date(a.LastModified).getTime()
-  );
+  const sortedBackups = await listBackups();
 
   if (sortedBackups.length > config.maxBackups) {
     const backupsToDelete = sortedBackups.slice(config.maxBackups);
 
     for (const backup of backupsToDelete) {
-      await deleteFromS3(backup.Key);
+      await deleteFromS3(backup.name);
     }
   }
 };

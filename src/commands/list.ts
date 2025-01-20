@@ -3,7 +3,7 @@ import type { OutputFormat } from "@/types";
 import { formatBytes, formatDate } from "@/utils/format";
 import Table from "cli-table3";
 
-export const list = async (outputFormat: OutputFormat = "human") => {
+export const listBackups = async () => {
   const backups = await listFromS3();
 
   const sortedBackups = backups
@@ -14,6 +14,12 @@ export const list = async (outputFormat: OutputFormat = "human") => {
       name: obj.Key || "",
       size: obj.Size || 0,
     }));
+
+  return sortedBackups;
+};
+
+export const list = async (outputFormat: OutputFormat = "human") => {
+  const sortedBackups = await listBackups();
 
   if (outputFormat === "json") {
     if (!sortedBackups.length) {

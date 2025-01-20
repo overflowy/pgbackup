@@ -1,10 +1,9 @@
 import { backup } from "@/commands/backup";
 import { list } from "@/commands/list";
+import { remove } from "@/commands/remove";
 
 const main = async () => {
-  await list();
   await backup();
-  await list();
 };
 
 main();
