@@ -2,12 +2,14 @@ import { config } from "@/config";
 import type { BackupMetadata, S3Object } from "@/types";
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import { createReadStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
 
 const s3Client = new S3Client({
   endpoint: config.s3Endpoint,
@@ -69,4 +71,18 @@ export const getBackupMetadataFromS3 = async (key: string): Promise<BackupMetada
 
   const response = await s3Client.send(command);
   return response as unknown as BackupMetadata;
+};
+
+export const downloadFromS3 = async (key: string, destinationPath: string): Promise<void> => {
+  const command = new GetObjectCommand({
+    Bucket: config.s3Bucket,
+    Key: key,
+  });
+
+  const response = await s3Client.send(command);
+  if (!response.Body) {
+    throw new Error("Empty response from S3");
+  }
+
+  await pipeline(response.Body as NodeJS.ReadableStream, createWriteStream(destinationPath));
 };
