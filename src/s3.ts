@@ -1,5 +1,5 @@
 import { config } from "@/config";
-import type { BackupMetadata, OutputFormat } from "@/types";
+import type { S3Object } from "@/types";
 import { DeleteObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream } from "node:fs";
@@ -50,7 +50,7 @@ export const listFromS3 = async () => {
   });
 
   const response = await s3Client.send(command);
-  if (!response.Contents) return [];
+  if (!response.Contents) return [] as S3Object[];
 
-  return response.Contents;
+  return response.Contents as S3Object[];
 };

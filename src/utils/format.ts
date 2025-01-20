@@ -28,5 +28,5 @@ export const formatDuration = (ms: number): string => {
 };
 
 export const formatDate = (date: Date): string => {
-  return format(date, "MM/dd/yyyy HH:mm");
+  return format(date, "yyyy-MM-dd HH:mm");
 };

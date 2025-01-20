@@ -23,10 +23,18 @@ export type BackupMetadata = {
   checksum: string;
 };
 
+export type S3Object = {
+  Key: string;
+  LastModified: Date;
+  Size: number;
+  ETag: string;
+  StorageClass: string;
+};
+
+export type OutputFormat = "human" | "json";
+
 export type RestoreOptions = {
   dryRun: boolean;
   force: boolean;
   drop: boolean;
 };
-
-export type OutputFormat = "human" | "json";

@@ -1,7 +1,7 @@
-import { backup } from "@/backup";
+import { list } from "@/commands/list";
 
 const main = async () => {
-  await backup();
+  await list();
 };
 
 main();
